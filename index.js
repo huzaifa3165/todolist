@@ -1,31 +1,59 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const date = require(__dirname + "/date.js");
+const mongoose = require("mongoose");
 const app = express();
-const listItems = [];
 const workItems = [];
+
+
+mongoose.connect("mongodb://localhost:27017/todo")
+const todoSchema = new mongoose.Schema({
+  note: String
+})
+const Notes = new mongoose.model("note",todoSchema)
+const workNotes = new mongoose.model("worknote",todoSchema)
+
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 
 app.get("/", function (req, res) {
-  const day = date.getDate();
-  res.render("list", { dayToday: day, listItems: listItems });
+  Notes.find(function(err,list){
+    const listItems = []
+    list.forEach(element => {
+      listItems.push(element.note)
+    });
+    const day = date.getDate();
+    res.render("list", { dayToday: day, listItems: listItems });
+  })
 });
 
 app.post("/", function (req, res) {
   const listItem = req.body.ListItem;
-  if (req.body.list == "My Work") {
-    workItems.push(listItem);
-    res.redirect("/work");
-  } else {
-    listItems.push(listItem);
+
+if (req.body.list == "My Work") {
+  const note = new workNotes({
+    note:listItem
+  })
+  note.save()
+  res.redirect("/work");
+} else {
+    const note = new Notes({
+    note:listItem
+  })
+  note.save()
     res.redirect("/");
   }
 });
 
 app.get("/work", function (req, res) {
-  res.render("list", { dayToday: "My Work", listItems: workItems });
+  workNotes.find(function(err,list){
+    const listItems = []
+    list.forEach(element => {
+      listItems.push(element.note)
+    });
+    res.render("list", { dayToday: "My Work", listItems: listItems });
+  })
 });
 app.get("/about", function (req, res) {
   res.render("about");
