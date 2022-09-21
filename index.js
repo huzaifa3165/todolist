@@ -1,63 +1,83 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const date = require(__dirname + "/date.js");
 const mongoose = require("mongoose");
 const app = express();
-const workItems = [];
 
-
-mongoose.connect("mongodb://localhost:27017/todo")
+mongoose.connect("mongodb://localhost:27017/todo");
 const todoSchema = new mongoose.Schema({
-  note: String
-})
-const Notes = new mongoose.model("note",todoSchema)
-const workNotes = new mongoose.model("worknote",todoSchema)
+  note: String,
+});
 
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 
 app.get("/", function (req, res) {
-  Notes.find(function(err,list){
-    const listItems = []
-    list.forEach(element => {
-      listItems.push(element.note)
-    });
-    const day = date.getDate();
-    res.render("list", { dayToday: day, listItems: listItems });
-  })
+  const Notes = new mongoose.model("note", todoSchema);
+  Notes.find(function (err, list) {
+    res.render("list", { dayToday: "today", listItems: list });
+  });
 });
 
 app.post("/", function (req, res) {
+  const Notes = new mongoose.model("note", todoSchema);
   const listItem = req.body.ListItem;
-
-if (req.body.list == "My Work") {
-  const note = new workNotes({
-    note:listItem
-  })
-  note.save()
-  res.redirect("/work");
-} else {
     const note = new Notes({
-    note:listItem
-  })
-  note.save()
+      note: listItem,
+    });
+    note.save();
+    res.redirect("/");
+
+});
+app.post("/delete", function (req, res) {
+  let id = req.body.checkbox;
+  let page = req.body.pagetitle;
+  if(page == "today"){
+    const Notes = new mongoose.model('note', todoSchema);
+    Notes.findByIdAndRemove(id,function(err){
+      if(err){
+        console.log(err)
+      }
+    });
     res.redirect("/");
   }
+  else{
+  const Notes = new mongoose.model(page, todoSchema);
+  Notes.findByIdAndRemove(id,function(err){
+    if(err){
+      console.log(err)
+    }
+  });
+  res.redirect("/"+page);
+}
+  
+
 });
 
-app.get("/work", function (req, res) {
-  workNotes.find(function(err,list){
-    const listItems = []
-    list.forEach(element => {
-      listItems.push(element.note)
+app.post("/:todopage", function (req,res){
+    if(req.params.todopage=="today"){
+      res.redirect(307, '/')
+    }
+    else{
+
+
+    const listItem = req.body.ListItem;
+    const Notes = new mongoose.model(req.params.todopage, todoSchema);
+    const note = new Notes({
+      note: listItem,
     });
-    res.render("list", { dayToday: "My Work", listItems: listItems });
+    note.save();
+    res.redirect("/"+req.params.todopage);
+    }
   })
+
+app.get("/:todopage", function (req, res) {
+  const Notes = new mongoose.model(req.params.todopage, todoSchema);
+  Notes.find(function (err, list) {
+    res.render("list", { dayToday: req.params.todopage, listItems: list });
+  });
 });
-app.get("/about", function (req, res) {
-  res.render("about");
-});
+
 
 app.listen(3000, function () {
   console.log("Server Running at port 3000\nGo to 127.0.0.1:3000");
